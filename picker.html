@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบฟอร์มบันทึกการผลิต (แก้ไขได้)</title>
+    <style>
+        /* CSS สำหรับจัดรูปแบบ */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f4f7f6; }
+        .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h1 { color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 10px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+        input[type="date"], select, input[type="text"], input[type="number"], .data-list-input {
+            width: 100%;
+            padding: 12px;
+            box-sizing: border-box;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .input-inline { display: flex; gap: 10px; align-items: flex-end; }
+        .input-inline > .form-group { flex: 1; }
+        
+        /* ปุ่มหลัก */
+        button {
+            padding: 12px 20px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #218838; }
+        .add-button { background-color: #ffc107; color: #333; }
+        .add-button:hover { background-color: #e0a800; }
+        .add-entry-btn-container { text-align: right; margin-top: 15px; }
+
+        /* ส่วนแสดงรายการที่เพิ่มแล้ว */
+        #current-entries { border: 1px solid #ccc; padding: 15px; border-radius: 4px; margin-top: 20px; background-color: #f8f9fa; }
+        #current-entries table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        #current-entries th, #current-entries td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        #current-entries th:first-child, #current-entries td:first-child { text-align: left; }
+        .remove-btn { background-color: #dc3545; padding: 5px 10px; font-size: 12px; }
+        .remove-btn:hover { background-color: #c82333; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 700px; border-radius: 8px; }
+        .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-btn:hover, .close-btn:focus { color: #000; text-decoration: none; cursor: pointer; }
+
+        /* ตารางสรุป */
+        .summary-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .summary-table th, .summary-table td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+        .summary-table th { background-color: #e9f5ff; text-align: center; }
+
+        /* ปุ่มใน Modal */
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; }
+        .edit-btn-modal { background-color: #6c757d; }
+        .edit-btn-modal:hover { background-color: #5a6268; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>📊 บันทึกข้อมูลการผลิต</h1>
+        <form id="productionForm">
+            
+            <div class="input-inline">
+                <div class="form-group" style="flex: 2;">
+                    <label for="production-date">📅 วันที่:</label>
+                    <input type="date" id="production-date" name="production-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="maker">🚗 Maker:</label>
+                    <select id="maker" name="maker" required onchange="updateLineOptions()">
+                        <option value="">-- เลือก Maker --</option>
+                        <option value="Toyota">Toyota</option>
+                        <option value="Nissan">Nissan</option>
+                        <option value="Isuzu">Isuzu</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="line">🏭 Line:</label>
+                    <select id="line" name="line" required onchange="updateWHNoOptions()">
+                        <option value="">-- เลือก Line --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="shift">🌙 Shift:</label>
+                    <select id="shift" name="shift" required>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                    </select>
+                </div>
+            </div>
+
+            <hr>
+
+            <h2>รายการผลิต (เพิ่มหลายรายการได้)</h2>
+            
+            <div class="form-group">
+                <label for="wh-no">📦 W/H NO.:</label>
+                <div class="input-inline">
+                    <input list="wh-no-list" id="wh-no" name="wh-no" class="data-list-input" placeholder="เลือกหรือพิมพ์เพื่อค้นหา/เพิ่ม W/H NO." required>
+                    <datalist id="wh-no-list"></datalist>
+                </div>
+            </div>
+            
+            <div class="input-inline">
+                <div class="form-group">
+                    <label for="round1">รอบที่ 1 (ชิ้น):</label>
+                    <input type="number" id="round1" name="round1" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="round2">รอบที่ 2 (ชิ้น):</label>
+                    <input type="number" id="round2" name="round2" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="round3">รอบที่ 3 (ชิ้น):</label>
+                    <input type="number" id="round3" name="round3" value="0" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="waiting">รอส่ง (ชิ้น):</label>
+                    <input type="number" id="waiting" name="waiting" value="0" min="0">
+                </div>
+            </div>
+            
+            <div class="add-entry-btn-container">
+                <button type="button" class="add-button" onclick="addEntry()">➕ เพิ่มรายการ (W/H NO. นี้)</button>
+            </div>
+
+            <hr>
+
+            <div id="current-entries">
+                <p><strong>รายการผลิตที่บันทึกชั่วคราว:</strong></p>
+                <table id="entries-table">
+                    <thead>
+                        <tr>
+                            <th>W/H NO.</th>
+                            <th>รอบ 1</th>
+                            <th>รอบ 2</th>
+                            <th>รอบ 3</th>
+                            <th>รอส่ง</th>
+                            <th>รวม</th>
+                            <th>จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+                <p id="no-entries-msg" style="text-align: center; color: #6c757d;">ยังไม่มีรายการผลิตถูกเพิ่ม</p>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button type="button" onclick="handleSubmit()">💾 สรุปและส่งข้อมูล</button>
+            </div>
+
+        </form>
+    </div>
+
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>✅ สรุปข้อมูลรวมที่บันทึก</h2>
+            <div id="summaryContent">
+                </div>
+            <div class="modal-actions">
+                <button onclick="editSubmission()" class="edit-btn-modal">✏️ แก้ไขข้อมูล</button>
+                <button onclick="confirmSubmission()" style="background-color: #007bff;">✔️ ยืนยันการส่งข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ฐานข้อมูลหลัก (ไม่ได้แก้ไขจากโค้ดเดิม) ---
+        const lineOptions = {
+            Toyota: ["DT-1", "DT-2", "DT-3", "DT-4", "DT-5", "DT-6", "DT-8", "DT-9", "DT-10", "DT-11", "DT-13", "DT-16"],
+            Nissan: ["DN-10", "DN-18"],
+            Isuzu: ["DI-1", "DI-2", "DI-3", "DI-4", "DI-5", "DI-6"]
+        };
+
+        const dt16WHNo = [
+            "8213C KK110 B00", "8213C KK150 B00", "8213C KK160 B00", "8213C KKF70 B00", "8213C KKF80 B00", 
+            "8213C KKF80 B00 (KD)", "8213C KKG01 B00", "8213C KKG10 B00", "8213C KKG20 B00", 
+            "8213C KKG20 B00 (KD)", "8213C KKG30 B00", "8213C KKG90 C00", "8213C KKZ10 A00", 
+            "8213C KK280 B00", "8213C KK310 B00", "8213C KK601 B00", "8213C KK510 B00", 
+            "8213C KK550 B00", "8213C KK620 B00", "8213C KK640 B00", "8213C KK650 B00", 
+            "8213C KK870 B00", "8213C KKA00 B00", "8213C KKC40 B00", "8213C KKC90 B00", 
+            "8213C KKD00 B00", "8213C KKD80 B00", "8213C KKY50 A00", "8213C KKX70 A00", 
+            "8213C KKE30 B00", "8213C KKE40 B00", "8213D KK430 A00", "8213D KK460 A00", 
+            "8213D KK590 A00", "8213D KK810 A00", "8213D KK730 C00", "8213D KKP90 C00", 
+            "8213D KKT80 C00", "8213D KKX70 C00", "8213E KK750 C00"
+        ];
+        let customWHNo = ["EXAMPLE-001", "EXAMPLE-002"]; 
+        let productionEntries = []; 
+        let entryIdCounter = 0; 
+
+        // --- DOM Elements ---
+        const makerSelect = document.getElementById('maker');
+        const lineSelect = document.getElementById('line');
+        const whNoInput = document.getElementById('wh-no');
+        const whNoList = document.getElementById('wh-no-list');
+        const entriesTableBody = document.querySelector('#entries-table tbody');
+        const noEntriesMsg = document.getElementById('no-entries-msg');
+
+        // --- ฟังก์ชันหลัก (ไม่ได้แก้ไขฟังก์ชันย่อย) ---
+
+        function updateLineOptions() {
+            const selectedMaker = makerSelect.value;
+            lineSelect.innerHTML = '<option value="">-- กรุณาเลือก Line --</option>'; 
+            
+            if (selectedMaker && lineOptions[selectedMaker]) {
+                lineOptions[selectedMaker].forEach(line => {
+                    const option = document.createElement('option');
+                    option.value = line;
+                    option.textContent = line;
+                    lineSelect.appendChild(option);
+                });
+            }
+            updateWHNoOptions(); 
+        }
+
+        function updateWHNoOptions() {
+            const selectedLine = lineSelect.value;
+            whNoList.innerHTML = ''; 
+            
+            let whList = customWHNo; 
+            
+            if (selectedLine === 'DT-16') {
+                whList = dt16WHNo;
+            }
+
+            whList.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item;
+                whNoList.appendChild(option);
+            });
+
+            const enteredWHNo = whNoInput.value.trim().toUpperCase();
+            if (enteredWHNo && !whList.includes(enteredWHNo)) {
+                if (selectedLine !== 'DT-16') {
+                    if (!customWHNo.includes(enteredWHNo)) {
+                        customWHNo.push(enteredWHNo);
+                        const newOption = document.createElement('option');
+                        newOption.value = enteredWHNo;
+                        whNoList.appendChild(newOption);
+                    }
+                }
+            }
+        }
+
+        function addEntry() {
+            const whNo = whNoInput.value.trim().toUpperCase();
+            const round1 = parseInt(document.getElementById('round1').value) || 0;
+            const round2 = parseInt(document.getElementById('round2').value) || 0;
+            const round3 = parseInt(document.getElementById('round3').value) || 0;
+            const waiting = parseInt(document.getElementById('waiting').value) || 0;
+            
+            if (!document.getElementById('production-date').value || !makerSelect.value || !lineSelect.value || !whNo) {
+                alert('กรุณากรอกข้อมูลหลักและ W/H NO. ให้ครบถ้วน');
+                return;
+            }
+            updateWHNoOptions(); 
+
+            const newEntry = {
+                id: entryIdCounter++,
+                whNo: whNo,
+                r1: round1,
+                r2: round2,
+                r3: round3,
+                waiting: waiting,
+                total: round1 + round2 + round3 + waiting
+            };
+
+            if (newEntry.total === 0) {
+                 alert('กรุณาใส่จำนวนในรอบที่ 1, 2, 3 หรือ รอส่ง อย่างน้อยหนึ่งช่อง');
+                 return;
+            }
+
+            productionEntries.push(newEntry);
+            renderEntriesTable();
+
+            whNoInput.value = '';
+            document.getElementById('round1').value = 0;
+            document.getElementById('round2').value = 0;
+            document.getElementById('round3').value = 0;
+            document.getElementById('waiting').value = 0;
+            whNoInput.focus(); 
+        }
+
+        function renderEntriesTable() {
+            entriesTableBody.innerHTML = '';
+            
+            if (productionEntries.length === 0) {
+                noEntriesMsg.style.display = 'block';
+                return;
+            }
+
+            noEntriesMsg.style.display = 'none';
+
+            productionEntries.forEach(entry => {
+                const row = entriesTableBody.insertRow();
+                row.id = `entry-row-${entry.id}`;
+                row.innerHTML = `
+                    <td>${entry.whNo}</td>
+                    <td>${entry.r1}</td>
+                    <td>${entry.r2}</td>
+                    <td>${entry.r3}</td>
+                    <td>${entry.waiting}</td>
+                    <td><strong>${entry.total}</strong></td>
+                    <td><button type="button" class="remove-btn" onclick="removeEntry(${entry.id})">ลบ</button></td>
+                `;
+            });
+        }
+        
+        function removeEntry(id) {
+            productionEntries = productionEntries.filter(entry => entry.id !== id);
+            renderEntriesTable();
+        }
+
+        function handleSubmit() {
+            if (productionEntries.length === 0) {
+                alert('กรุณาเพิ่มรายการผลิตอย่างน้อย 1 รายการก่อนส่งข้อมูล');
+                return;
+            }
+
+            const mainData = {
+                date: document.getElementById('production-date').value,
+                maker: makerSelect.value,
+                line: lineSelect.value,
+                shift: document.getElementById('shift').value
+            };
+            
+            for (const key in mainData) {
+                if (!mainData[key]) {
+                    alert('กรุณากรอกข้อมูลหลัก (วันที่, Maker, Line, Shift) ให้ครบถ้วน');
+                    return;
+                }
+            }
+
+            // --- การคำนวณสรุป ---
+            const summaryData = productionEntries.reduce((acc, entry) => {
+                const key = entry.whNo;
+                if (!acc[key]) {
+                    acc[key] = { whNo: key, r1: 0, r2: 0, r3: 0, waiting: 0, total: 0 };
+                }
+                acc[key].r1 += entry.r1;
+                acc[key].r2 += entry.r2;
+                acc[key].r3 += entry.r3;
+                acc[key].waiting += entry.waiting;
+                acc[key].total += entry.total;
+                return acc;
+            }, {});
+
+            let tableRows = '';
+            Object.values(summaryData).forEach(item => {
+                tableRows += `
+                    <tr>
+                        <td style="text-align: left; font-weight: bold;">${item.whNo}</td>
+                        <td>${item.r1}</td>
+                        <td>${item.r2}</td>
+                        <td>${item.r3}</td>
+                        <td>${item.waiting}</td>
+                        <td><strong>${item.total}</strong></td>
+                    </tr>
+                `;
+            });
+            
+            const summaryHTML = `
+                <p><strong>วันที่:</strong> ${mainData.date} | <strong>Maker:</strong> ${mainData.maker} | <strong>Line:</strong> ${mainData.line} | <strong>Shift:</strong> ${mainData.shift}</p>
+                
+                <p style="margin-top: 20px; font-weight: bold;">สรุปจำนวนรวมตาม W/H NO.:</p>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>W/H NO.</th>
+                            <th>รอบ 1 รวม</th>
+                            <th>รอบ 2 รวม</th>
+                            <th>รอบ 3 รวม</th>
+                            <th>รอส่ง รวม</th>
+                            <th>รวมทั้งหมด</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+                <p style="margin-top: 15px; color: #dc3545;">**ข้อมูลนี้จะถูกส่งไปยังระบบเมื่อคุณกดยืนยัน</p>
+            `;
+            
+            document.getElementById('summaryContent').innerHTML = summaryHTML;
+            document.getElementById('summaryModal').style.display = 'block'; 
+        }
+
+        // --- ฟังก์ชัน Modal ใหม่ ---
+        function closeModal() {
+            document.getElementById('summaryModal').style.display = 'none';
+        }
+
+        // 🟢 ฟังก์ชันใหม่: แก้ไขข้อมูล
+        function editSubmission() {
+            closeModal();
+            // ผู้ใช้สามารถกลับไปแก้ไขข้อมูลหลักหรือรายการในตารางชั่วคราว (productionEntries) ได้ทันที
+            alert('กลับสู่หน้าแก้ไขข้อมูลแล้ว คุณสามารถแก้ไขรายการในตารางด้านล่างได้เลย');
+        }
+
+        function confirmSubmission() {
+            const finalData = {
+                main: {
+                    date: document.getElementById('production-date').value,
+                    maker: makerSelect.value,
+                    line: lineSelect.value,
+                    shift: document.getElementById('shift').value
+                },
+                entries: productionEntries
+            };
+            
+            console.log('ข้อมูลที่ส่งจริง:', finalData);
+            alert('ข้อมูลถูกส่งไปยังระบบเรียบร้อยแล้ว! ขอบคุณครับ');
+            
+            // รีเซ็ตทุกอย่างหลังจากส่ง
+            closeModal();
+            document.getElementById('productionForm').reset(); 
+            productionEntries = []; 
+            renderEntriesTable();
+            updateLineOptions(); 
+        }
+
+        // --- ตั้งค่าเริ่มต้น ---
+        document.addEventListener('DOMContentLoaded', () => {
+            updateLineOptions();
+            renderEntriesTable();
+            document.getElementById('production-date').valueAsDate = new Date();
+        });
+    </script>
+</body>
+</html>
