@@ -21,6 +21,27 @@
         .button-container button:hover {
             background-color: #0056b3;
         }
+        <style>
+    /* ... โค้ด CSS เดิมของฟอร์ม ... */
+
+    /* โค้ด CSS สำหรับปุ่มนำทาง */
+    .nav-button {
+        display: inline-block; /* ทำให้กำหนดขนาดและ padding ได้ */
+        padding: 10px 20px;
+        background-color: #007bff; /* สีน้ำเงิน */
+        color: white;
+        text-align: center;
+        text-decoration: none; /* ลบเส้นใต้ลิงก์ */
+        border-radius: 5px;
+        font-size: 16px;
+        margin-right: 15px;
+        transition: background-color 0.3s;
+    }
+
+    .nav-button:hover {
+        background-color: #0056b3;
+    }
+</style>
     </style>
 </head>
 <body>
@@ -33,5 +54,16 @@
             บันทึกข้อมูลการผลิต (สำหรับหัวหน้าแผนก)
         </button>
     </div>
+    <div style="margin-top: 30px; padding-top: 20px;">
+    <h2>การนำทาง</h2>
+    
+    <a href="daily_leave.html" class="nav-button">
+        🗓️ จัดการการลา (Daily Leave)
+    </a>
+
+    <a href="picker.html" class="nav-button">
+        📋 เลือกข้อมูล (Picker)
+    </a>
+</div>
 </body>
 </html>
