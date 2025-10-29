@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ส่งข้อมูลพนักงานหยุด-ลาประจำวัน</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; padding: 20px; background-color: #f4f4f4; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; color: #007bff; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input[type="date"], .form-group select, .form-group input[type="text"], .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-row { display: flex; gap: 20px; }
+        .form-row > div { flex: 1; }
+        .personnel-entry { display: flex; gap: 10px; margin-bottom: 10px; border: 1px dashed #ccc; padding: 10px; border-radius: 5px; align-items: flex-end; }
+        .personnel-entry input, .personnel-entry select { padding: 8px; }
+        .personnel-entry button { background-color: #dc3545; color: white; border: none; padding: 8px 12px; cursor: pointer; border-radius: 4px; }
+        .add-button { background-color: #28a745; color: white; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; margin-top: 10px; }
+        .summary-box { padding: 10px; background-color: #e9ecef; border-radius: 4px; font-weight: bold; text-align: right; }
+        .footer-buttons { text-align: center; margin-top: 30px; position: relative; }
+        .footer-buttons button { padding: 10px 20px; font-size: 16px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; }
+        #exit-button { position: absolute; bottom: 0; right: 0; background-color: #6c757d; color: white; }
+        #next-button { background-color: #007bff; color: white; }
+
+        /* Modal/Popup Style */
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888;
+            width: 80%; max-width: 600px; border-radius: 8px; position: relative;
+        }
+        .modal-body p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>ส่งข้อมูลพนักงานหยุด-ลาประจำวัน</h2>
+
+        <form id="dataForm">
+            <div class="form-group">
+                <label for="date">วันที่:</label>
+                <input type="date" id="date" name="date" required>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="department">แผนก:</label>
+                    <select id="department" name="department" required onchange="updateMakerAndLine()">
+                        <option value="">-- เลือกแผนก --</option>
+                        <option value="Pre Ass’y">Pre Ass’y</option>
+                        <option value="Main Ass’y">Main Ass’y</option>
+                        <option value="QA">QA</option>
+                        <option value="RM/FS">RM/FS</option>
+                        <option value="ENG">ENG</option>
+                        <option value="EDU">EDU</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="maker">Maker:</label>
+                    <select id="maker" name="maker" required onchange="updateLine()">
+                        <option value="">-- เลือก Maker --</option>
+                        </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="shift">กะ:</label>
+                    <select id="shift" name="shift" required onchange="updateLine()">
+                        <option value="">-- เลือกกะ --</option>
+                        <option value="A">All</option>
+                        <option value="B">A</option>
+                        <option value="B">B</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="line">Line:</label>
+                    <div id="line-container">
+                        <input type="text" id="line-text" name="line" placeholder="กรอก Line" style="display:none;">
+                        <select id="line-select" name="line-select" style="display:none;">
+                            </select>
+                    </div>
+                </div>
+            </div>
+
+            <h3>ข้อมูลกำลังคน</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="target_set">ตัว SET (คน):</label>
+                    <input type="text" id="target_set" name="target_set" pattern="\d*" title="ใส่ตัวเลขเท่านั้น" required>
+                </div>
+                <div class="form-group">
+                    <label for="set_deficit">ขาดตัว SET (คน):</label>
+                    <input type="text" id="set_deficit" name="set_deficit" pattern="\d*" title="ใส่ตัวเลขเท่านั้น" required>
+                </div>
+            </div>
+
+            <h3>พนักงานหยุด-ลา</h3>
+            <div id="leave-personnel-entries">
+                </div>
+            <div class="summary-box">
+                รวมพนักงานหยุด-ลา (คน): <span id="leave-total">0</span>
+            </div>
+            <button type="button" class="add-button" onclick="addPersonnelEntry('leave')">+</button>
+
+            <br><br>
+
+            <h3>พนักงานปลด-ลาออก</h3>
+            <div id="resignation-personnel-entries">
+                </div>
+            <div class="summary-box">
+                รวมรายชื่อพนักงานปลด-ลาออก (คน): <span id="resignation-total">0</span>
+            </div>
+            <button type="button" class="add-button" onclick="addPersonnelEntry('resignation')">+</button>
+
+            <br><br>
+
+            <div class="form-group">
+                <label for="note">หมายเหตุ:</label>
+                <textarea id="note" name="note" rows="4"></textarea>
+            </div>
+
+            <div class="footer-buttons">
+                <button type="button" id="next-button" onclick="showSummaryPopup()">ถัดไป</button>
+                <button type="button" id="exit-button" onclick="window.location.href='index.html';">EXIT</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <h3>สรุปผลข้อมูลก่อนการส่ง</h3>
+            <div id="summaryDetails">
+                </div>
+            <div class="footer-buttons" style="margin-top: 20px;">
+                <button id="confirm-button" style="background-color: #28a745;">ยืนยันการส่งข้อมูล</button>
+                <button id="edit-button" style="background-color: #ffc107;" onclick="closeModal()">แก้ไขข้อมูล</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // *** 1. Data Definitions ***
+        const LINES = {
+            'Main Ass’y': {
+                'Isuzu': ['DI-1', 'DI-2', 'DI-3', 'DI-4', 'DI-5', 'DI-6'],
+                'Nissan': ['DN-10', 'DN-18'],
+                'Toyota': ['DT-1', 'DT-2', 'DT-3', 'DT-4', 'DT-5', 'DT-6', 'DT-8', 'DT-9', 'DT-10', 'DT-11', 'DT-13', 'DT-16'],
+                'Mitsubishi': [] // ไม่มีใน Main Ass'y
+            }
+        };
+
+        const MAKERS = {
+            'Pre Ass’y': ['All', 'Isuzu', 'Nissan', 'Toyota', 'Mitsubishi'],
+            'Main Ass’y': ['All', 'Isuzu', 'Nissan', 'Toyota'], // ไม่มี Mitsubishi
+            'QA': ['All'],
+            'RM/FS': ['All'],
+            'ENG': ['All'],
+            'EDU': ['All']
+        };
+
+        const MAIN_ASSY_JOB_ROLES = [
+            'SUB ASS’Y', 'WIRE LAYOUT', 'TAPING', 'PART ASS’Y', 'CLIP ASS’Y',
+            'CLIP OFF LINE/CHECK CLIP/INS.1', 'CHECKER', 'INS.2/Q-GATE',
+            'FINISHING', 'DI/AQA', 'PACKING'
+        ];
+
+        const LEAVE_TYPES = ['ลากิจ', 'ลาป่วย', 'ลาพักร้อน', 'ขาดงาน'];
+
+        // *** 2. Conditional Display Functions (แผนก, Maker, Line) ***
+
+        function updateMakerAndLine() {
+            const department = document.getElementById('department').value;
+            const makerSelect = document.getElementById('maker');
+            const shift = document.getElementById('shift').value;
+            
+            // 1. Update Maker Dropdown
+            makerSelect.innerHTML = '<option value="">-- เลือก Maker --</option>';
+            if (department && MAKERS[department]) {
+                MAKERS[department].forEach(maker => {
+                    const option = document.createElement('option');
+                    option.value = maker;
+                    option.textContent = maker;
+                    makerSelect.appendChild(option);
+                });
+            }
+
+            // 2. Update Line Input/Dropdown
+            updateLine(department, makerSelect.value, shift);
+            
+            // 3. Update Personnel Entries (Job Role visibility)
+            updatePersonnelJobRoles();
+        }
+
+        function updateLine() {
+            const department = document.getElementById('department').value;
+            const maker = document.getElementById('maker').value;
+            const shift = document.getElementById('shift').value;
+            const lineContainer = document.getElementById('line-container');
+            const lineText = document.getElementById('line-text');
+            const lineSelect = document.getElementById('line-select');
+
+            // Reset visibility
+            lineText.style.display = 'none';
+            lineSelect.style.display = 'none';
+
+            if (!department || !maker) {
+                return;
+            }
+
+            // A. Pre Ass’y: Show Text Input for Line
+            if (department === 'Pre Ass’y' && (maker === 'Isuzu' || maker === 'Nissan') && (shift === 'A' || shift === 'B')) {
+                lineText.style.display = 'block';
+                lineText.name = 'line'; // Set name for form submission
+                lineSelect.name = 'line-select-disabled'; // Disable other
+            } 
+            // B. Main Ass’y: Show Dropdown for Line
+            else if (department === 'Main Ass’y' && LINES['Main Ass’y'][maker] && LINES['Main Ass’y'][maker].length > 0) {
+                lineSelect.innerHTML = '<option value="">-- เลือก Line --</option>';
+                LINES['Main Ass’y'][maker].forEach(line => {
+                    const option = document.createElement('option');
+                    option.value = line;
+                    option.textContent = line;
+                    lineSelect.appendChild(option);
+                });
+                lineSelect.style.display = 'block';
+                lineSelect.name = 'line'; // Set name for form submission
+                lineText.name = 'line-text-disabled'; // Disable other
+            } 
+            // C. Default (QA, RM/FS, ENG, EDU หรือ Maker อื่นๆ ที่ไม่มี Line เฉพาะ): ซ่อนทั้งคู่ หรือแสดงช่อง Text ว่าง
+            else {
+                // สำหรับแผนกที่ไม่ได้กำหนดเงื่อนไข Line เฉพาะ ให้ซ่อนทั้งคู่ หรืออาจจะแสดงเป็นช่อง Text เปล่าๆ
+                lineText.style.display = 'none';
+                lineSelect.style.display = 'none';
+                lineText.value = ''; // Clear value
+                lineSelect.value = ''; // Clear value
+            }
+        }
+
+        // *** 3. Dynamic Personnel Entry Functions (+ Button) ***
+
+        let leaveCount = 0;
+        let resignationCount = 0;
+
+        function addPersonnelEntry(type) {
+            const containerId = type === 'leave' ? 'leave-personnel-entries' : 'resignation-personnel-entries';
+            const countVar = type === 'leave' ? ++leaveCount : ++resignationCount;
+            const container = document.getElementById(containerId);
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'personnel-entry';
+            entryDiv.id = `${type}-entry-${countVar}`;
+
+            // 1. ชื่อพนักงาน
+            let html = `
+                <div style="flex: 2;">
+                    <label>ชื่อพนักงาน ${type === 'leave' ? 'หยุด-ลา' : 'ปลด-ลาออก'} (คน):</label>
+                    <input type="text" name="${type}_name" required>
+                </div>`;
+
+            // 2. Dropdown หน้าที่งาน (เฉพาะ Main Ass’y)
+            const department = document.getElementById('department').value;
+            const showJobRole = department === 'Main Ass’y' && type !== 'resignation'; // Job Role Only for Main Ass'y Leave
+
+            if (department === 'Main Ass’y' && type !== 'resignation') {
+                 html += `
+                    <div class="job-role-dropdown" style="flex: 1;">
+                        <label>หน้าที่งาน:</label>
+                        <select name="${type}_job_role">
+                            <option value="">-- เลือกหน้าที่ --</option>
+                            ${MAIN_ASSY_JOB_ROLES.map(role => `<option value="${role}">${role}</option>`).join('')}
+                        </select>
+                    </div>`;
+            } else if (department === 'Main Ass’y' && type === 'resignation') {
+                 html += `
+                    <div class="job-role-dropdown" style="flex: 1;">
+                        <label>หน้าที่งาน:</label>
+                        <select name="${type}_job_role">
+                            <option value="">-- เลือกหน้าที่ --</option>
+                            ${MAIN_ASSY_JOB_ROLES.map(role => `<option value="${role}">${role}</option>`).join('')}
+                        </select>
+                    </div>`;
+            }
+            // 3. Dropdown ประเภทการลา (เฉพาะการลา)
+            if (type === 'leave') {
+                html += `
+                    <div style="flex: 1;">
+                        <label>ประเภทการลา:</label>
+                        <select name="leave_type" required>
+                            <option value="">-- เลือกประเภท --</option>
+                            ${LEAVE_TYPES.map(type => `<option value="${type}">${type}</option>`).join('')}
+                        </select>
+                    </div>`;
+            }
+            
+            // 4. ปุ่มลบ
+            html += `<button type="button" onclick="removePersonnelEntry('${type}', '${entryDiv.id}')">ลบ</button>`;
+
+            entryDiv.innerHTML = html;
+            container.appendChild(entryDiv);
+
+            // คำนวณใหม่
+            updateTotalCount(type);
+        }
+
+        function removePersonnelEntry(type, entryId) {
+            const entry = document.getElementById(entryId);
+            entry.remove();
+            updateTotalCount(type);
+        }
+
+        function updateTotalCount(type) {
+            const containerId = type === 'leave' ? 'leave-personnel-entries' : 'resignation-personnel-entries';
+            const totalId = type === 'leave' ? 'leave-total' : 'resignation-total';
+            const container = document.getElementById(containerId);
+            const totalElement = document.getElementById(totalId);
+            
+            // นับจำนวน entry ที่มีอยู่
+            const count = container.children.length;
+            totalElement.textContent = count;
+        }
+
+        function updatePersonnelJobRoles() {
+            const department = document.getElementById('department').value;
+            const entries = document.querySelectorAll('.personnel-entry');
+
+            entries.forEach(entry => {
+                const isLeaveEntry = entry.id.startsWith('leave-');
+                const isResignationEntry = entry.id.startsWith('resignation-');
+                const existingJobRoleDropdown = entry.querySelector('.job-role-dropdown');
+
+                if (department === 'Main Ass’y') {
+                    // Main Ass'y: ต้องมี Dropdown หน้าที่งาน
+                    if (!existingJobRoleDropdown) {
+                        // ถ้าไม่มีให้สร้าง
+                        const jobRoleDiv = document.createElement('div');
+                        jobRoleDiv.className = 'job-role-dropdown';
+                        jobRoleDiv.style.flex = '1';
+                        
+                        const roleType = isLeaveEntry ? 'leave' : 'resignation';
+                        jobRoleDiv.innerHTML = `
+                            <label>หน้าที่งาน:</label>
+                            <select name="${roleType}_job_role">
+                                <option value="">-- เลือกหน้าที่ --</option>
+                                ${MAIN_ASSY_JOB_ROLES.map(role => `<option value="${role}">${role}</option>`).join('')}
+                            </select>`;
+                        
+                        // แทรกก่อน Dropdown ประเภทการลา (ถ้ามี) หรือก่อนปุ่มลบ
+                        const insertBeforeElement = isLeaveEntry ? entry.querySelector('select[name="leave_type"]').parentNode : entry.querySelector('button');
+                        entry.insertBefore(jobRoleDiv, insertBeforeElement);
+                    }
+                } else {
+                    // Pre Ass’y หรืออื่น ๆ: ซ่อน/ลบ Dropdown หน้าที่งาน (ยกเว้นประเภทการลา)
+                    if (existingJobRoleDropdown) {
+                        existingJobRoleDropdown.remove();
+                    }
+                }
+            });
+        }
+
+        // *** 4. Summary Popup Functions ***
+
+        function showSummaryPopup() {
+            if (!document.getElementById('dataForm').checkValidity()) {
+                alert('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน');
+                return;
+            }
+
+            const formData = new FormData(document.getElementById('dataForm'));
+            const summaryDetails = document.getElementById('summaryDetails');
+            let html = '';
+
+            // 1. ข้อมูลหลัก
+            html += '<h4>ข้อมูลหลัก</h4>';
+            html += `<p><strong>วันที่:</strong> ${formData.get('date')}</p>`;
+            html += `<p><strong>แผนก:</strong> ${formData.get('department')}</p>`;
+            html += `<p><strong>Maker:</strong> ${formData.get('maker')}</p>`;
+            html += `<p><strong>กะ:</strong> ${formData.get('shift')}</p>`;
+            html += `<p><strong>Line:</strong> ${formData.get('line') || formData.get('line-select')}</p>`;
+            html += `<p><strong>ตัว SET (คน):</strong> ${formData.get('target_set')}</p>`;
+            html += `<p><strong>ขาดตัว SET (คน):</strong> ${formData.get('set_deficit')}</p>`;
+
+            // 2. พนักงานหยุด-ลา
+            html += '<h4>พนักงานหยุด-ลา</h4>';
+            const leaveNames = formData.getAll('leave_name');
+            const leaveTypes = formData.getAll('leave_type');
+            const leaveJobRoles = formData.getAll('leave_job_role');
+            
+            if (leaveNames.length > 0 && leaveNames[0] !== '') {
+                html += '<ul>';
+                leaveNames.forEach((name, index) => {
+                    const type = leaveTypes[index] || '-';
+                    const role = leaveJobRoles[index] || '-';
+                    const jobRoleText = formData.get('department') === 'Main Ass’y' ? ` | หน้าที่: ${role}` : '';
+                    html += `<li>${name} (ประเภท: ${type}${jobRoleText})</li>`;
+                });
+                html += `</ul><p><strong>รวม:</strong> ${document.getElementById('leave-total').textContent} คน</p>`;
+            } else {
+                html += '<p>ไม่มีข้อมูลพนักงานหยุด-ลา</p>';
+            }
+
+            // 3. พนักงานปลด-ลาออก
+            html += '<h4>พนักงานปลด-ลาออก</h4>';
+            const resignationNames = formData.getAll('resignation_name');
+            const resignationJobRoles = formData.getAll('resignation_job_role');
+
+             if (resignationNames.length > 0 && resignationNames[0] !== '') {
+                html += '<ul>';
+                resignationNames.forEach((name, index) => {
+                     const role = resignationJobRoles[index] || '-';
+                     const jobRoleText = formData.get('department') === 'Main Ass’y' ? ` | หน้าที่: ${role}` : '';
+                     html += `<li>${name} ${jobRoleText}</li>`;
+                });
+                html += `</ul><p><strong>รวม:</strong> ${document.getElementById('resignation-total').textContent} คน</p>`;
+            } else {
+                html += '<p>ไม่มีข้อมูลพนักงานปลด-ลาออก</p>';
+            }
+
+            // 4. หมายเหตุ
+            html += `<h4>หมายเหตุ</h4><p>${formData.get('note') || '-'}</p>`;
+
+            summaryDetails.innerHTML = html;
+            document.getElementById('summaryModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('summaryModal').style.display = 'none';
+        }
+
+        // *** 5. Initial Setup and Event Listeners ***
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // ตั้งค่าค่าเริ่มต้นสำหรับฟังก์ชันการคำนวณ
+            updateTotalCount('leave');
+            updateTotalCount('resignation');
+            
+            // ตั้งค่า Event Listener เมื่อมีการเปลี่ยนแปลงค่าในฟอร์มหลัก
+            document.getElementById('department').addEventListener('change', updateMakerAndLine);
+            document.getElementById('maker').addEventListener('change', updateLine);
+            document.getElementById('shift').addEventListener('change', updateLine);
+
+            // ตั้งค่าการคำนวณอัตโนมัติเมื่อมีการเพิ่ม/ลบ
+            const leaveContainer = document.getElementById('leave-personnel-entries');
+            const resignationContainer = document.getElementById('resignation-personnel-entries');
+            
+            // Event listener สำหรับปุ่มยืนยันการส่งข้อมูล
+            document.getElementById('confirm-button').addEventListener('click', () => {
+                // *** Placeholder สำหรับโค้ดจริงในการส่งข้อมูลไปยัง Google Sheets API/Backend ***
+                alert('ข้อมูลถูกส่งแล้ว! (ฟังก์ชันส่งจริงต้องเชื่อมต่อกับ Google Sheets API)');
+                closeModal();
+                // window.location.href = 'index.html'; // อาจจะย้อนกลับไปหน้าแรกหลังส่ง
+            });
+
+            // เพิ่ม entry แรกเมื่อโหลดหน้า (ทางเลือก)
+            addPersonnelEntry('leave');
+            addPersonnelEntry('resignation');
+
+            // Set today's date as default
+            document.getElementById('date').valueAsDate = new Date();
+        });
+    </script>
+</body>
+</html>
